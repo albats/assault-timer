@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Asalto · Timer de rounds</title>
+  <meta name="description" content="Temporizador de rounds gratuito: actividad, descanso, bloques y presets.">
+  <meta name="theme-color" content="#F3F2EE">
+  <meta name="color-scheme" content="light dark">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Asalto">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/styles.css">
+  <script>
+    // Aplica el tema antes de pintar para evitar parpadeos.
+    (function () {
+      try {
+        var s = JSON.parse(localStorage.getItem('asalto.settings') || '{}');
+        var pref = s.theme || 'system';
+        var dark = pref === 'dark' || (pref === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+      } catch (e) { /* sin almacenamiento */ }
+    })();
+  </script>
+</head>
+<body>
+  <!-- ============ INICIO ============ -->
+  <section id="screen-home" class="screen" aria-labelledby="home-title">
+    <header class="topbar">
+      <div class="brand">
+        <img src="icons/icon.svg" alt="" class="brand-icon" width="36" height="36">
+        <div>
+          <h1 id="home-title" class="brand-name">Asalto</h1>
+          <p class="brand-tagline" data-i18n="app.tagline">Temporizador de rounds</p>
+        </div>
+      </div>
+      <button class="icon-btn" id="btn-open-settings" data-i18n-attr="aria-label:home.settings" aria-label="Ajustes">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
+      </button>
+    </header>
+
+    <main class="content">
+      <button class="btn btn-primary btn-xl" id="btn-new-session">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        <span data-i18n="home.new">Nueva sesión</span>
+      </button>
+
+      <h2 class="section-title" data-i18n="home.presets">Mis presets</h2>
+      <ul class="preset-list" id="preset-list"></ul>
+      <p class="empty" id="preset-empty" hidden data-i18n="home.empty"></p>
+    </main>
+  </section>
+
+  <!-- ============ EDITOR ============ -->
+  <section id="screen-editor" class="screen" hidden aria-labelledby="editor-title">
+    <header class="topbar">
+      <button class="icon-btn" data-action="back" data-i18n-attr="aria-label:common.back" aria-label="Atrás">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <h1 id="editor-title" class="topbar-title"></h1>
+      <span class="icon-btn-spacer"></span>
+    </header>
+
+    <main class="content editor" id="editor-body">
+      <div class="card">
+        <span class="field-label" data-i18n="editor.countdown"></span>
+        <div class="segmented" id="countdown-options" role="radiogroup"></div>
+      </div>
+
+      <div class="card" id="simple-fields"></div>
+
+      <div class="card">
+        <label class="switch-row">
+          <span>
+            <span class="field-label" data-i18n="editor.useBlocks"></span>
+            <span class="hint" data-i18n="editor.useBlocksHint"></span>
+          </span>
+          <input type="checkbox" class="switch" id="use-blocks">
+        </label>
+      </div>
+
+      <div id="blocks-fields" hidden>
+        <div class="card" id="blocks-count-field"></div>
+        <div id="group-list"></div>
+        <button class="btn btn-ghost btn-block" id="btn-add-group">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          <span data-i18n="editor.addGroup"></span>
+        </button>
+        <div class="card" id="block-rest-field"></div>
+      </div>
+    </main>
+
+    <footer class="editor-footer">
+      <div class="summary">
+        <span class="summary-label" data-i18n="editor.total"></span>
+        <strong id="summary-total">0:00</strong>
+        <span class="summary-rounds" id="summary-rounds"></span>
+      </div>
+      <p class="error" id="editor-error" hidden></p>
+      <div class="footer-actions">
+        <button class="btn btn-secondary" id="btn-save-preset"></button>
+        <button class="btn btn-primary" id="btn-start">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12-7.5z" class="fill"/></svg>
+          <span data-i18n="editor.start"></span>
+        </button>
+      </div>
+    </footer>
+  </section>
+
+  <!-- ============ TEMPORIZADOR ============ -->
+  <section id="screen-timer" class="screen timer" hidden data-phase="prep" aria-live="off">
+    <div class="timer-top">
+      <button class="icon-btn on-color" id="btn-exit" data-i18n-attr="aria-label:timer.exit" aria-label="Salir">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+      <div class="timer-meta">
+        <span id="t-block"></span>
+        <span id="t-group"></span>
+      </div>
+      <span class="wake" id="t-wake" title="">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </span>
+    </div>
+
+    <div class="timer-main" id="timer-main">
+      <div class="timer-face">
+        <div class="phase-label" id="t-phase"></div>
+        <div class="time" id="t-time" role="timer">0:00</div>
+        <div class="round" id="t-round"></div>
+        <div class="progress" aria-hidden="true"><div class="progress-bar" id="t-progress"></div></div>
+      </div>
+
+      <div class="timer-side">
+        <div class="timer-info">
+          <span id="t-next"></span>
+          <span id="t-remaining"></span>
+        </div>
+
+        <div class="controls" id="t-controls">
+          <button class="ctrl" id="btn-prev" data-i18n-attr="aria-label:timer.prev" aria-label="Fase anterior">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5v14" /><path d="M19 5.5v13L9 12z" class="fill"/></svg>
+          </button>
+          <button class="ctrl ctrl-main" id="btn-pause" aria-label="Pausa">
+            <svg viewBox="0 0 24 24" aria-hidden="true" class="ic-pause"><path d="M8 5v14M16 5v14"/></svg>
+            <svg viewBox="0 0 24 24" aria-hidden="true" class="ic-play"><path d="M7 4.5v15l12-7.5z" class="fill"/></svg>
+          </button>
+          <button class="ctrl" id="btn-skip" data-i18n-attr="aria-label:timer.skip" aria-label="Saltar fase">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 5v14" /><path d="M5 5.5v13L15 12z" class="fill"/></svg>
+          </button>
+        </div>
+
+        <div class="done-actions" id="t-done-actions" hidden>
+          <button class="btn btn-on-color" id="btn-repeat" data-i18n="timer.repeat"></button>
+          <button class="btn btn-on-color-ghost" id="btn-home" data-i18n="timer.home"></button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ AJUSTES ============ -->
+  <section id="screen-settings" class="screen" hidden aria-labelledby="settings-title">
+    <header class="topbar">
+      <button class="icon-btn" data-action="back" data-i18n-attr="aria-label:common.back" aria-label="Atrás">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <h1 id="settings-title" class="topbar-title" data-i18n="settings.title"></h1>
+      <span class="icon-btn-spacer"></span>
+    </header>
+
+    <main class="content">
+      <div class="card">
+        <span class="field-label" data-i18n="settings.language"></span>
+        <div class="segmented" id="opt-language" role="radiogroup">
+          <button type="button" data-value="es" role="radio">Español</button>
+          <button type="button" data-value="en" role="radio">English</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <span class="field-label" data-i18n="settings.theme"></span>
+        <div class="segmented" id="opt-theme" role="radiogroup">
+          <button type="button" data-value="system" role="radio" data-i18n="settings.themeSystem"></button>
+          <button type="button" data-value="light" role="radio" data-i18n="settings.themeLight"></button>
+          <button type="button" data-value="dark" role="radio" data-i18n="settings.themeDark"></button>
+        </div>
+      </div>
+
+      <div class="card stack">
+        <label class="switch-row">
+          <span class="field-label" data-i18n="settings.sound"></span>
+          <input type="checkbox" class="switch" id="opt-sound">
+        </label>
+        <label class="range-row">
+          <span class="field-label" data-i18n="settings.volume"></span>
+          <input type="range" min="0" max="100" step="5" id="opt-volume">
+        </label>
+        <div>
+          <span class="field-label" data-i18n="settings.test"></span>
+          <div class="test-buttons">
+            <button class="btn btn-secondary btn-sm" data-test-sound="warn" data-i18n="settings.testWarn"></button>
+            <button class="btn btn-secondary btn-sm" data-test-sound="end" data-i18n="settings.testEnd"></button>
+            <button class="btn btn-secondary btn-sm" data-test-sound="done" data-i18n="settings.testDone"></button>
+          </div>
+          <p class="hint" data-i18n="settings.iosHint"></p>
+        </div>
+      </div>
+
+      <div class="card stack">
+        <label class="switch-row">
+          <span>
+            <span class="field-label" data-i18n="settings.vibration"></span>
+            <span class="hint" id="vibration-hint" hidden data-i18n="settings.vibrationUnsupported"></span>
+          </span>
+          <input type="checkbox" class="switch" id="opt-vibration">
+        </label>
+        <label class="switch-row">
+          <span class="field-label" data-i18n="settings.tapPause"></span>
+          <input type="checkbox" class="switch" id="opt-tap-pause">
+        </label>
+      </div>
+
+      <div class="card">
+        <span class="field-label" data-i18n="settings.install"></span>
+        <p class="hint" data-i18n="settings.installIos"></p>
+        <p class="hint" data-i18n="settings.installAndroid"></p>
+      </div>
+
+      <p class="version" id="app-version"></p>
+    </main>
+  </section>
+
+  <!-- ============ DIÁLOGOS ============ -->
+  <dialog id="dlg-confirm" class="dialog">
+    <form method="dialog">
+      <p id="dlg-confirm-text"></p>
+      <div class="dialog-actions">
+        <button value="cancel" class="btn btn-secondary" data-i18n="common.cancel"></button>
+        <button value="ok" class="btn btn-primary" id="dlg-confirm-ok"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-save" class="dialog">
+    <form method="dialog" id="form-save">
+      <h2 data-i18n="save.title"></h2>
+      <label class="text-field">
+        <span class="field-label" data-i18n="save.name"></span>
+        <input type="text" id="save-name" maxlength="40" autocomplete="off" data-i18n-attr="placeholder:save.placeholder">
+      </label>
+      <p class="error" id="save-error" hidden></p>
+      <div class="dialog-actions">
+        <button value="cancel" class="btn btn-secondary" formnovalidate data-i18n="common.cancel"></button>
+        <button value="ok" class="btn btn-primary" id="save-ok" data-i18n="common.ok"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-menu" class="dialog sheet">
+    <form method="dialog">
+      <h2 id="dlg-menu-title"></h2>
+      <div class="menu-list">
+        <button value="edit" class="menu-item" data-i18n="preset.edit"></button>
+        <button value="duplicate" class="menu-item" data-i18n="preset.duplicate"></button>
+        <button value="delete" class="menu-item danger" data-i18n="preset.delete"></button>
+        <button value="cancel" class="menu-item muted" data-i18n="common.cancel"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <script src="js/sequence.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
