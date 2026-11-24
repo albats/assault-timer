@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#4E6E8A"/>
+  <!-- botón del cronómetro -->
+  <rect x="226" y="72" width="60" height="34" rx="10" fill="#F3F2EE"/>
+  <rect x="246" y="100" width="20" height="26" fill="#F3F2EE"/>
+  <!-- esfera -->
+  <circle cx="256" cy="288" r="150" fill="none" stroke="#F3F2EE" stroke-opacity=".22" stroke-width="44"/>
+  <!-- tramo de actividad (claro) -->
+  <path d="M256 138 A150 150 0 1 1 106 288" fill="none" stroke="#F3F2EE" stroke-width="44" stroke-linecap="round"/>
+  <!-- tramo de descanso (rojo apagado) -->
+  <path d="M106 288 A150 150 0 0 1 150 182" fill="none" stroke="#D49A93" stroke-width="44" stroke-linecap="round"/>
+  <!-- centro -->
+  <circle cx="256" cy="288" r="22" fill="#F3F2EE"/>
+</svg>
