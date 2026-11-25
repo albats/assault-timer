@@ -85,6 +85,8 @@ svg .fill { fill: currentColor; stroke: none; }
   max-width: 720px;
   margin: 0 auto;
 }
+/* Inicio: más aire encima del título */
+#screen-home .topbar { padding-top: calc(32px + var(--safe-top)); padding-bottom: 16px; }
 .topbar-title { font-size: 1.15rem; font-weight: 650; margin: 0; text-align: center; flex: 1; }
 
 .brand { display: flex; align-items: center; gap: 12px; }
