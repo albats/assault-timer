@@ -11,10 +11,10 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Ring Timer">
-  <link rel="manifest" href="manifest.webmanifest?v=1.1.2">
+  <link rel="manifest" href="manifest.webmanifest?v=1.2.0">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="css/styles.css?v=1.1.2">
+  <link rel="stylesheet" href="css/styles.css?v=1.2.0">
   <script>
     // Aplica el tema antes de pintar para evitar parpadeos.
     (function () {
@@ -67,13 +67,20 @@
 
     <main class="content editor" id="editor-body">
       <div class="card">
+        <span class="field-label" data-i18n="editor.mode"></span>
+        <div class="segmented segmented-wrap" id="mode-options" role="radiogroup"></div>
+      </div>
+
+      <div class="card">
         <span class="field-label" data-i18n="editor.countdown"></span>
         <div class="segmented" id="countdown-options" role="radiogroup"></div>
       </div>
 
       <div class="card" id="simple-fields"></div>
 
-      <div class="card">
+      <div class="card" id="mode-fields" hidden></div>
+
+      <div class="card" id="blocks-toggle-card">
         <label class="switch-row">
           <span>
             <span class="field-label" data-i18n="editor.useBlocks"></span>
@@ -146,9 +153,18 @@
           <button class="pill" id="btn-plus10" data-i18n-attr="aria-label:timer.plus10" aria-label="Añadir 10 segundos">+10 s</button>
         </div>
 
+        <div class="mode-actions" id="t-mode-actions" hidden>
+          <button class="pill pill-lg" id="btn-count" data-i18n="timer.addRound">+1 ronda</button>
+          <button class="pill pill-lg" id="btn-lap" data-i18n="timer.lap">Vuelta</button>
+          <button class="pill pill-lg pill-solid" id="btn-finish" data-i18n="timer.finish">Terminar</button>
+        </div>
+
         <div class="controls" id="t-controls">
           <button class="ctrl" id="btn-prev" data-i18n-attr="aria-label:timer.prev" aria-label="Fase anterior">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5v14" /><path d="M19 5.5v13L9 12z" class="fill"/></svg>
+          </button>
+          <button class="ctrl" id="btn-restart" data-i18n-attr="aria-label:timer.restart" aria-label="Reiniciar fase">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4.5h4.5"/></svg>
           </button>
           <button class="ctrl ctrl-main" id="btn-pause" aria-label="Pausa">
             <svg viewBox="0 0 24 24" aria-hidden="true" class="ic-pause"><path d="M8 5v14M16 5v14"/></svg>
@@ -305,10 +321,10 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
-  <script src="js/sequence.js?v=1.1.2"></script>
-  <script src="js/i18n.js?v=1.1.2"></script>
-  <script src="js/audio.js?v=1.1.2"></script>
-  <script src="js/colors.js?v=1.1.2"></script>
-  <script src="js/app.js?v=1.1.2"></script>
+  <script src="js/sequence.js?v=1.2.0"></script>
+  <script src="js/i18n.js?v=1.2.0"></script>
+  <script src="js/audio.js?v=1.2.0"></script>
+  <script src="js/colors.js?v=1.2.0"></script>
+  <script src="js/app.js?v=1.2.0"></script>
 </body>
 </html>

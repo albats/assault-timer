@@ -5,7 +5,7 @@
 (function () {
   'use strict';
 
-  const APP_VERSION = '1.1.2'; // Ring Timer
+  const APP_VERSION = '1.2.0'; // Ring Timer
   const S = window.Sequence;
   const I18n = window.I18n;
   const t = I18n.t;
@@ -16,7 +16,8 @@
     settings: 'asalto.settings',
     presets: 'asalto.presets',
     last: 'asalto.lastConfig',
-    seeded: 'asalto.seeded'
+    seeded: 'asalto.seeded',
+    seedVersion: 'asalto.seedVersion'
   };
 
   // ---------------------------------------------------------------
@@ -85,7 +86,9 @@
   }, load(KEYS.settings, {}));
   // Colores personalizados (actividad y descanso)
   settings.colors = Object.assign({}, Colors.DEFAULTS, settings.colors || {});
-  ['work', 'rest'].forEach((k) => { if (!Colors.isHex(settings.colors[k])) settings.colors[k] = Colors.DEFAULTS[k]; });
+  // Solo se admiten colores de la paleta (un color propio antiguo vuelve al predeterminado).
+  const inPalette = (hex) => Colors.PALETTE.some((c) => c.hex === hex);
+  ['work', 'rest'].forEach((k) => { if (!inPalette(settings.colors[k])) settings.colors[k] = Colors.DEFAULTS[k]; });
   if (Sound.SETS.indexOf(settings.soundSet) === -1) settings.soundSet = 'bell';
 
   function saveSettings() { save(KEYS.settings, settings); }
@@ -139,22 +142,53 @@
 
   function savePresets() { save(KEYS.presets, presets); }
 
+  const seed = (nameKey, cfg) => ({ id: uid(), name: t(nameKey), config: S.normalizeConfig(cfg) });
+
+  /**
+   * Presets de ejemplo. seedVersion permite añadir ejemplos nuevos a quien
+   * ya tenía la app sin tocar los presets que haya creado o editado.
+   */
   function seedPresets() {
-    if (load(KEYS.seeded, false)) return;
-    presets = presets.concat([
-      { id: uid(), name: t('seed.boxing'), config: S.normalizeConfig({ countdown: 10, simple: { rounds: 3, work: 180, rest: 60 } }) },
-      { id: uid(), name: t('seed.tabata'), config: S.normalizeConfig({ countdown: 5, simple: { rounds: 8, work: 20, rest: 10 } }) },
-      { id: uid(), name: t('seed.blocks'), config: S.normalizeConfig({
-        countdown: 5, useBlocks: true,
-        blocks: { count: 2, blockRest: 120, groups: [{ rounds: 3, work: 180, rest: 60 }, { rounds: 3, work: 120, rest: 60 }] }
-      }) }
-    ]);
+    let version = load(KEYS.seedVersion, load(KEYS.seeded, false) ? 1 : 0);
+    if (version < 1) {
+      presets = presets.concat([
+        seed('seed.boxing', { countdown: 10, simple: { rounds: 12, work: 180, rest: 60 } }),
+        seed('seed.tabata', { countdown: 5, simple: { rounds: 8, work: 20, rest: 10 } }),
+        seed('seed.blocks', {
+          countdown: 5, useBlocks: true,
+          blocks: { count: 2, blockRest: 120, groups: [{ rounds: 3, work: 180, rest: 60 }, { rounds: 3, work: 120, rest: 60 }] }
+        })
+      ]);
+    } else if (version === 1) {
+      // Boxeo pasa de 3 a 12 rounds, solo si el preset sigue como venía.
+      presets.forEach((p) => {
+        const c = p.config;
+        if (['Boxeo', 'Boxing'].indexOf(p.name) !== -1 && c && (c.mode || 'intervals') === 'intervals' && !c.useBlocks &&
+            c.simple && c.simple.rounds === 3 && c.simple.work === 180 && c.simple.rest === 60) {
+          c.simple.rounds = 12;
+        }
+      });
+    }
+    if (version < 2) {
+      presets = presets.concat([
+        seed('seed.emom', { mode: 'emom', countdown: 10, emom: { rounds: 10, interval: 60 } }),
+        seed('seed.amrap', { mode: 'amrap', countdown: 10, amrap: { duration: 12 * 60 } }),
+        seed('seed.fortime', { mode: 'fortime', countdown: 10, fortime: { cap: 15 * 60 } })
+      ]);
+    }
     savePresets();
     save(KEYS.seeded, true);
+    save(KEYS.seedVersion, 2);
   }
 
   function describeConfig(cfg) {
+    cfg = S.normalizeConfig(cfg);
     const total = S.formatTime(S.totalDuration(S.buildPhases(cfg)));
+    if (cfg.mode === 'emom') return 'EMOM · ' + cfg.emom.rounds + ' × ' + S.formatTime(cfg.emom.interval) + ' · ' + total;
+    if (cfg.mode === 'amrap') return 'AMRAP · ' + S.formatTime(cfg.amrap.duration);
+    if (cfg.mode === 'fortime') {
+      return 'For Time · ' + (cfg.fortime.cap > 0 ? t('preset.cap', { time: S.formatTime(cfg.fortime.cap) }) : t('preset.noCap'));
+    }
     if (!cfg.useBlocks) {
       const s = cfg.simple;
       return s.rounds + ' × ' + S.formatTime(s.work) + ' / ' + S.formatTime(s.rest) + ' · ' + total;
@@ -415,14 +449,48 @@
       }));
     });
 
+    // Tipo de sesión
+    const modes = $('#mode-options');
+    modes.innerHTML = '';
+    S.MODES.forEach((m) => {
+      modes.appendChild(el('button', {
+        type: 'button', role: 'radio', 'aria-checked': String(cfg.mode === m), text: t('mode.' + m),
+        onclick: () => { cfg.mode = m; renderEditor(); }
+      }));
+    });
+    const intervals = cfg.mode === 'intervals';
+
+    // Campos de EMOM, AMRAP y For Time
+    const mf = $('#mode-fields');
+    mf.innerHTML = '';
+    mf.hidden = intervals;
+    if (cfg.mode === 'emom') {
+      mf.appendChild(el('div', { class: 'fields-grid' }, [
+        field(t('editor.emomRounds'), stepper({ label: t('editor.emomRounds'), value: cfg.emom.rounds, min: L.rounds.min, max: L.rounds.max, onChange: (v) => { cfg.emom.rounds = v; updateSummary(); } })),
+        field(t('editor.emomInterval'), timeInput({ label: t('editor.emomInterval'), value: cfg.emom.interval, min: L.interval.min, max: L.interval.max, onChange: (v) => { cfg.emom.interval = v; updateSummary(); } }))
+      ]));
+      mf.appendChild(el('p', { class: 'hint', text: t('editor.emomHint') }));
+    } else if (cfg.mode === 'amrap') {
+      mf.appendChild(el('div', { class: 'fields-grid' }, [
+        field(t('editor.amrapDuration'), timeInput({ label: t('editor.amrapDuration'), value: cfg.amrap.duration, min: L.amrap.min, max: L.amrap.max, onChange: (v) => { cfg.amrap.duration = v; updateSummary(); } }))
+      ]));
+      mf.appendChild(el('p', { class: 'hint', text: t('editor.amrapHint') }));
+    } else if (cfg.mode === 'fortime') {
+      mf.appendChild(el('div', { class: 'fields-grid' }, [
+        field(t('editor.fortimeCap'), timeInput({ label: t('editor.fortimeCap'), value: cfg.fortime.cap, min: L.cap.min, max: L.cap.max, onChange: (v) => { cfg.fortime.cap = v; updateSummary(); } }))
+      ]));
+      mf.appendChild(el('p', { class: 'hint', text: t('editor.fortimeHint') }));
+    }
+
     // Modo simple
     const simple = $('#simple-fields');
     simple.innerHTML = '';
     simple.appendChild(groupFields(cfg.simple));
-    simple.hidden = cfg.useBlocks;
+    simple.hidden = !intervals || cfg.useBlocks;
 
+    $('#blocks-toggle-card').hidden = !intervals;
     $('#use-blocks').checked = cfg.useBlocks;
-    $('#blocks-fields').hidden = !cfg.useBlocks;
+    $('#blocks-fields').hidden = !intervals || !cfg.useBlocks;
 
     // Bloques
     const countField = $('#blocks-count-field');
@@ -467,6 +535,9 @@
 
   function editorIsValid() {
     const cfg = editor.config;
+    if (cfg.mode === 'emom') return cfg.emom.interval >= S.LIMITS.interval.min && cfg.emom.rounds >= 1;
+    if (cfg.mode === 'amrap') return cfg.amrap.duration >= S.LIMITS.amrap.min;
+    if (cfg.mode === 'fortime') return true;
     const groups = cfg.useBlocks ? cfg.blocks.groups : [cfg.simple];
     return groups.every((g) => g.work >= 1 && g.rounds >= 1);
   }
@@ -475,8 +546,9 @@
     const valid = editorIsValid();
     const phases = S.buildPhases(editor.config);
     const rounds = phases.filter((p) => p.type === 'work').length;
-    $('#summary-total').textContent = S.formatTime(S.totalDuration(phases));
-    $('#summary-rounds').textContent = t('editor.totalRounds', { n: rounds });
+    const cfg = editor.config;
+    $('#summary-total').textContent = S.isOpen(phases) ? t('preset.noCap') : S.formatTime(S.totalDuration(phases));
+    $('#summary-rounds').textContent = (cfg.mode === 'intervals' || cfg.mode === 'emom') ? t('editor.totalRounds', { n: rounds }) : '';
     const err = $('#editor-error');
     err.hidden = valid;
     err.textContent = valid ? '' : t('editor.invalid');
@@ -575,8 +647,14 @@
     pausedAt: 0,
     warned: false,
     interval: null,
-    lastRender: ''
+    lastRender: '',
+    count: 0,        // AMRAP: rondas contadas
+    laps: [],        // For Time: segundos acumulados en cada vuelta
+    finalTime: 0,    // For Time: tiempo final
+    capReached: false
   };
+
+  const mode = () => (timer.config ? timer.config.mode : 'intervals');
 
   const now = () => performance.now();
 
@@ -610,6 +688,11 @@
     save(KEYS.last, cfg);
     timer.config = cfg;
     timer.phases = S.buildPhases(cfg);
+    timer.phases.forEach((p) => { p.baseDuration = p.duration; });
+    timer.count = 0;
+    timer.laps = [];
+    timer.finalTime = 0;
+    timer.capReached = false;
     timer.active = true;
     timer.finished = false;
     timer.paused = false;
@@ -629,8 +712,9 @@
     timer.phaseStart = startTime;
     if (timer.paused) timer.pausedAt = startTime;
     const p = timer.phases[i];
-    // Sin aviso de 10 s en la cuenta atrás inicial ni en fases de 10 s o menos.
-    timer.warned = p.type === 'prep' || p.duration <= 10;
+    // Sin aviso de 10 s en la cuenta atrás inicial, en fases de 10 s o menos
+    // ni en un For Time sin límite.
+    timer.warned = p.type === 'prep' || p.duration <= 10 || !!p.open;
   }
 
   function elapsedSec() {
@@ -644,7 +728,11 @@
     let changed = false;
     while (elapsed >= timer.phases[timer.idx].duration) {
       const end = timer.phaseStart + timer.phases[timer.idx].duration * 1000;
-      if (timer.idx === timer.phases.length - 1) { finish(); return; }
+      if (timer.idx === timer.phases.length - 1) {
+        if (timer.phases[timer.idx].countUp) timer.capReached = true;
+        finish();
+        return;
+      }
       enterPhase(timer.idx + 1, end);
       elapsed = elapsedSec();
       changed = true;
@@ -664,6 +752,8 @@
   }
 
   function finish() {
+    const cur = timer.phases[timer.idx];
+    if (cur && cur.countUp) timer.finalTime = Math.min(Math.max(0, elapsedSec()), cur.duration);
     timer.finished = true;
     clearInterval(timer.interval);
     releaseWake();
@@ -672,6 +762,7 @@
     flash();
     $('#t-controls').hidden = true;
     $('#t-adjust').hidden = true;
+    $('#t-mode-actions').hidden = true;
     $('#t-done-actions').hidden = false;
     render(true);
   }
@@ -708,6 +799,36 @@
     render(true);
   }
 
+  /** Vuelve a empezar la fase actual desde su tiempo completo. */
+  function restartPhase() {
+    if (!timer.active || timer.finished) return;
+    const p = timer.phases[timer.idx];
+    p.duration = p.baseDuration;
+    if (p.type === 'work' && mode() === 'amrap') timer.count = 0;
+    if (p.type === 'work' && mode() === 'fortime') timer.laps = [];
+    enterPhase(timer.idx, now());
+    render(true);
+  }
+
+  function addRound() {
+    if (!timer.active || timer.finished || timer.phases[timer.idx].type !== 'work') return;
+    timer.count++;
+    vibrate(40);
+    render(true);
+  }
+
+  function addLap() {
+    if (!timer.active || timer.finished || timer.phases[timer.idx].type !== 'work') return;
+    timer.laps.push(Math.max(0, elapsedSec()));
+    vibrate(40);
+    render(true);
+  }
+
+  function finishNow() {
+    if (!timer.active || timer.finished) return;
+    finish();
+  }
+
   function stopTimer() {
     timer.active = false;
     timer.finished = false;
@@ -717,7 +838,13 @@
   }
 
   function phaseName(type) {
+    if (type === 'work' && mode() !== 'intervals') return t('mode.' + mode());
     return t({ prep: 'timer.prep', work: 'timer.work', rest: 'timer.rest', blockRest: 'timer.blockRest' }[type]);
+  }
+
+  /** Tiempos de cada vuelta de For Time (diferencia entre vueltas). */
+  function splits() {
+    return timer.laps.map((v, i) => S.formatTime(Math.floor(v - (i ? timer.laps[i - 1] : 0))));
   }
 
   /** Datos de round a mostrar: en la cuenta atrás, los del primer round. */
@@ -743,14 +870,28 @@
       screen.dataset.phase = 'done';
       screen.classList.remove('is-paused');
       applyPhaseColors(screen, 'done', false);
+      let doneTime = S.formatTime(total);
+      let doneRound = t('editor.totalRounds', { n: rounds });
+      let doneNext = '';
+      let doneExtra = '';
+      if (mode() === 'amrap') {
+        const work = timer.phases.find((x) => x.type === 'work');
+        doneTime = S.formatTime(work ? work.duration : total);
+        doneRound = t('timer.roundsResult', { n: timer.count });
+      } else if (mode() === 'fortime') {
+        doneTime = S.formatTime(Math.floor(timer.finalTime));
+        doneRound = t('timer.laps', { n: timer.laps.length });
+        if (timer.laps.length) doneNext = t('timer.splits', { list: splits().slice(-8).join(' · ') });
+        if (timer.capReached) doneExtra = t('timer.capReached');
+      }
       $('#t-phase').textContent = t('timer.done');
-      timeEl.textContent = S.formatTime(total);
-      timeEl.classList.remove('long');
-      $('#t-round').textContent = t('editor.totalRounds', { n: rounds });
+      timeEl.textContent = doneTime;
+      timeEl.classList.toggle('long', doneTime.length > 5);
+      $('#t-round').textContent = doneRound;
       $('#t-block').textContent = '';
       $('#t-group').textContent = '';
-      $('#t-next').textContent = '';
-      $('#t-remaining').textContent = '';
+      $('#t-next').textContent = doneNext;
+      $('#t-remaining').textContent = doneExtra;
       $('#t-progress').style.width = '100%';
       $('#t-wake').hidden = true;
       timer.lastRender = 'done';
@@ -761,7 +902,8 @@
     const p = timer.phases[timer.idx];
     const elapsed = Math.max(0, elapsedSec());
     const remaining = Math.max(0, p.duration - elapsed);
-    const shown = Math.ceil(remaining - 1e-6);
+    // For Time cuenta hacia arriba; el resto, hacia atrás.
+    const shown = p.countUp ? Math.floor(elapsed) : Math.ceil(remaining - 1e-6);
     const timeText = S.formatTime(shown);
 
     // Evita tocar el DOM si no ha cambiado nada visible.
@@ -780,8 +922,31 @@
     timeEl.classList.toggle('long', timeText.length > 4);
     timeEl.setAttribute('aria-label', timeText);
 
+    const m = mode();
     const info = roundInfo(timer.idx);
-    if (info) {
+    const isWork = p.type === 'work';
+    $('#t-mode-actions').hidden = !(isWork && (m === 'amrap' || m === 'fortime'));
+    $('#btn-count').hidden = m !== 'amrap';
+    $('#btn-lap').hidden = m !== 'fortime';
+    $('#btn-finish').hidden = m !== 'fortime';
+    $('#t-adjust').hidden = m === 'fortime' && isWork;
+    if (m === 'emom' && info) {
+      const key = timer.config.emom.interval === 60 ? 'timer.minute' : 'timer.interval';
+      $('#t-round').textContent = t(key, { n: info.roundOverall, total: info.totalRounds });
+      $('#t-block').textContent = '';
+      $('#t-group').textContent = '';
+    } else if (m === 'amrap') {
+      $('#t-round').textContent = isWork ? t('timer.roundsCount', { n: timer.count }) : '';
+      $('#t-block').textContent = '';
+      $('#t-group').textContent = '';
+    } else if (m === 'fortime') {
+      const sp = splits();
+      $('#t-round').textContent = isWork && timer.laps.length
+        ? t('timer.laps', { n: timer.laps.length }) + ' · ' + t('timer.lastLap', { time: sp[sp.length - 1] })
+        : '';
+      $('#t-block').textContent = '';
+      $('#t-group').textContent = '';
+    } else if (info) {
       const multi = info.groupCount > 1 || info.blockCount > 1;
       $('#t-round').textContent = multi
         ? t('timer.round', { n: info.round, total: info.roundsInGroup })
@@ -791,15 +956,23 @@
     }
 
     const next = timer.phases[timer.idx + 1];
-    $('#t-next').textContent = next
-      ? t('timer.next', { what: phaseName(next.type) + ' ' + S.formatTime(next.duration) })
-      : t('timer.nextEnd');
+    if (m === 'fortime' && isWork) {
+      $('#t-next').textContent = p.open ? t('timer.noCap') : t('timer.cap', { time: S.formatTime(p.duration) });
+    } else {
+      $('#t-next').textContent = next
+        ? t('timer.next', { what: phaseName(next.type) + ' ' + (next.open ? '' : S.formatTime(next.duration)) }).trim()
+        : t('timer.nextEnd');
+    }
 
-    let totalLeft = remaining;
-    for (let i = timer.idx + 1; i < timer.phases.length; i++) totalLeft += timer.phases[i].duration;
-    $('#t-remaining').textContent = t('timer.remaining', { time: S.formatTime(Math.ceil(totalLeft - 1e-6)) });
+    if (S.isOpen(timer.phases)) {
+      $('#t-remaining').textContent = '';
+    } else {
+      let totalLeft = remaining;
+      for (let i = timer.idx + 1; i < timer.phases.length; i++) totalLeft += timer.phases[i].duration;
+      $('#t-remaining').textContent = t('timer.remaining', { time: S.formatTime(Math.ceil(totalLeft - 1e-6)) });
+    }
 
-    $('#t-progress').style.width = Math.min(100, (elapsed / p.duration) * 100) + '%';
+    $('#t-progress').style.width = (p.open ? 0 : Math.min(100, (elapsed / p.duration) * 100)) + '%';
 
     const pauseBtn = $('#btn-pause');
     pauseBtn.setAttribute('aria-label', t(timer.paused ? 'timer.resume' : 'timer.pause'));
@@ -810,6 +983,10 @@
   $('#btn-pause').addEventListener('click', togglePause);
   $('#btn-skip').addEventListener('click', skipPhase);
   $('#btn-prev').addEventListener('click', prevPhase);
+  $('#btn-restart').addEventListener('click', restartPhase);
+  $('#btn-count').addEventListener('click', addRound);
+  $('#btn-lap').addEventListener('click', addLap);
+  $('#btn-finish').addEventListener('click', finishNow);
   $('#btn-minus10').addEventListener('click', () => adjustPhase(-10));
   $('#btn-plus10').addEventListener('click', () => adjustPhase(10));
   $('#btn-repeat').addEventListener('click', () => startSession(timer.config));
@@ -912,47 +1089,22 @@
       grid.appendChild(b);
     });
 
-    ui.picker = el('input', { type: 'color', 'aria-label': t('settings.colorCustom') });
-    ui.hex = el('input', { type: 'text', class: 'hex-input', maxlength: 7, spellcheck: 'false', autocomplete: 'off', autocapitalize: 'characters', 'aria-label': t('settings.colorHex') });
-    ui.error = el('p', { class: 'error', hidden: true, text: t('settings.colorInvalid') });
-    ui.row = el('div', { class: 'custom-row' }, [ui.picker, ui.hex, el('span', { class: 'custom-label', text: t('settings.colorCustom') })]);
-
-    ui.picker.addEventListener('input', () => setColor(target, ui.picker.value));
-    ui.hex.addEventListener('input', () => {
-      const v = Colors.normalizeHex(ui.hex.value);
-      ui.hex.setAttribute('aria-invalid', String(!v));
-      ui.error.hidden = !!v || ui.hex.value.replace('#', '').length < 6;
-      if (v) setColor(target, v, true);
-    });
-    ui.hex.addEventListener('blur', () => {
-      ui.hex.removeAttribute('aria-invalid');
-      ui.error.hidden = true;
-      updateColorPicker(target);
-    });
-
     box.appendChild(grid);
-    box.appendChild(ui.row);
-    box.appendChild(ui.error);
     updateColorPicker(target);
   }
 
-  function updateColorPicker(target, typing) {
+  function updateColorPicker(target) {
     const ui = pickers[target];
     if (!ui) return;
     const hex = settings.colors[target];
-    const inPalette = Colors.PALETTE.some((c) => c.hex === hex);
     ui.swatches.forEach((b) => b.setAttribute('aria-checked', String(b.dataset.hex === hex)));
-    ui.picker.value = hex.toLowerCase();
-    if (!typing) ui.hex.value = hex;
-    ui.row.classList.toggle('is-active', !inPalette);
   }
 
-  function setColor(target, hex, typing) {
-    hex = Colors.normalizeHex(hex);
-    if (!hex) return;
+  function setColor(target, hex) {
+    if (!inPalette(hex)) return;
     settings.colors[target] = hex;
     saveSettings();
-    updateColorPicker(target, typing);
+    updateColorPicker(target);
     renderColorPreview();
   }
 

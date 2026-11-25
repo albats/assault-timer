@@ -2,15 +2,17 @@
 
 Temporizador de rounds gratuito para entrenar: tiempo de actividad y de descanso, bloques de rounds, cuenta atrás inicial, presets con nombre, modo claro/oscuro y español/inglés. Es una web instalable (PWA): no necesita tienda de apps ni servidor.
 
-## Funcionalidades (v1.1.0)
+## Funcionalidades (v1.2.0)
 
+- **Tipos de sesión:** intervalos, EMOM (cada intervalo empieza un round), AMRAP (cuenta atrás con contador de rondas) y For Time (cronómetro hacia arriba con vueltas y tiempo límite opcional).
 - **Sesión simple:** rounds (1–99), actividad y descanso en mm:ss.
 - **Bloques (opcional):** N bloques (1–20), cada uno con varios grupos de rounds (cada grupo con sus propios tiempos) y descanso entre bloques.
 - **Cuenta atrás inicial:** 3, 5 (por defecto), 10, 15 o 30 s.
 - **Sonidos:** campana de boxeo por defecto. También hay pitido, silbato, gong y digital, que se eligen en Ajustes. Suena un aviso a los 10 s, otro al terminar cada fase y otro al terminar la sesión.
-- **Colores:** paleta pastel de 10 colores para la pantalla de actividad (índigo por defecto) y la de descanso (rojo por defecto), con opción de color hex personalizado y botón para restablecer. La pausa, la preparación, el descanso entre bloques y el final van siempre en gris. En tema oscuro los colores se oscurecen solos y el texto pasa a blanco.
+- **Colores:** paleta pastel de 10 colores para la pantalla de actividad (índigo por defecto) y la de descanso (rojo por defecto), con botón para restablecer (solo colores de la paleta). La pausa, la preparación, el descanso entre bloques y el final van siempre en gris. En tema oscuro los colores se oscurecen solos y el texto pasa a blanco.
 - **Destello de pantalla** al cambiar de fase.
-- **Botones −10 s / +10 s** para ajustar la fase en curso.
+- **Botones −10 s / +10 s** para ajustar la fase en curso y botón para **reiniciar la fase** desde su tiempo completo.
+- **Presets de ejemplo:** Boxeo (12 × 3:00/1:00), Tabata, bloques, EMOM 10 min, AMRAP 12 min y For Time con límite de 15 min.
 - **Pantalla siempre encendida** mientras el temporizador corre (Screen Wake Lock).
 - **Controles:** pausa/reanudar, saltar fase, fase anterior (si la fase lleva más de 3 s, la reinicia) y salir con confirmación.
 - **Presets con nombre:** guardar, editar, duplicar y borrar. Se guardan en el propio dispositivo.
