@@ -5,11 +5,12 @@
 (function () {
   'use strict';
 
-  const APP_VERSION = '1.0.0';
+  const APP_VERSION = '1.1.0';
   const S = window.Sequence;
   const I18n = window.I18n;
   const t = I18n.t;
   const Sound = window.Sound;
+  const Colors = window.Colors;
 
   const KEYS = {
     settings: 'asalto.settings',
@@ -78,9 +79,14 @@
     theme: 'system',
     sound: true,
     volume: 80,
+    soundSet: 'bell',
     vibration: true,
     tapPause: false
   }, load(KEYS.settings, {}));
+  // Colores personalizados (actividad y descanso)
+  settings.colors = Object.assign({}, Colors.DEFAULTS, settings.colors || {});
+  ['work', 'rest'].forEach((k) => { if (!Colors.isHex(settings.colors[k])) settings.colors[k] = Colors.DEFAULTS[k]; });
+  if (Sound.SETS.indexOf(settings.soundSet) === -1) settings.soundSet = 'bell';
 
   function saveSettings() { save(KEYS.settings, settings); }
 
@@ -89,7 +95,19 @@
   function applyTheme() {
     const dark = settings.theme === 'dark' || (settings.theme === 'system' && darkQuery && darkQuery.matches);
     document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    if (timer.active) render(true);
+    renderColorPreview();
     updateThemeColor();
+  }
+
+  const isDark = () => document.documentElement.getAttribute('data-theme') === 'dark';
+
+  /** Colores de una fase: actividad y descanso personalizables, el resto gris. */
+  function phaseColors(type, paused) {
+    let base = Colors.GRAY;
+    if (!paused && type === 'work') base = settings.colors.work;
+    else if (!paused && type === 'rest') base = settings.colors.rest;
+    return Colors.resolve(base, isDark());
   }
 
   function updateThemeColor() {
@@ -105,8 +123,13 @@
 
   function applySoundSettings() {
     Sound.setEnabled(settings.sound);
+    Sound.setSet(settings.soundSet);
     Sound.setVolume(settings.volume / 100);
+    Sound.prepare();
   }
+
+  // Los navegadores solo dejan sonar tras un toque: aprovechamos cualquiera.
+  document.addEventListener('pointerdown', () => Sound.unlock(), true);
 
   // ---------------------------------------------------------------
   // Presets
@@ -563,6 +586,24 @@
     }
   }
 
+  function flash() {
+    const f = $('#t-flash');
+    f.classList.remove('on');
+    void f.offsetWidth; // reinicia la animación
+    f.classList.add('on');
+  }
+
+  /** Suma o resta segundos a la fase actual (mínimo 1 s restante). */
+  function adjustPhase(delta) {
+    if (!timer.active || timer.finished) return;
+    const p = timer.phases[timer.idx];
+    const elapsed = elapsedSec();
+    p.duration = Math.max(Math.ceil(elapsed) + 1, p.duration + delta);
+    const remaining = p.duration - elapsed;
+    timer.warned = p.type === 'prep' || remaining <= 10;
+    render(true);
+  }
+
   function startSession(config) {
     Sound.unlock(); // tiene que ocurrir dentro del toque del usuario
     const cfg = S.normalizeConfig(clone(config));
@@ -575,6 +616,7 @@
     enterPhase(0, now());
     $('#t-done-actions').hidden = true;
     $('#t-controls').hidden = false;
+    $('#t-adjust').hidden = false;
     navigate('timer');
     requestWake();
     clearInterval(timer.interval);
@@ -610,6 +652,7 @@
     if (changed) {
       Sound.play('end');
       vibrate(400);
+      flash();
     }
     const remaining = timer.phases[timer.idx].duration - elapsed;
     if (!timer.warned && remaining <= 10) {
@@ -626,7 +669,9 @@
     releaseWake();
     Sound.play('done');
     vibrate([200, 100, 200, 100, 400]);
+    flash();
     $('#t-controls').hidden = true;
+    $('#t-adjust').hidden = true;
     $('#t-done-actions').hidden = false;
     render(true);
   }
@@ -650,6 +695,7 @@
     if (!timer.active || timer.finished) return;
     if (timer.idx >= timer.phases.length - 1) { finish(); return; }
     enterPhase(timer.idx + 1, now());
+    flash();
     render(true);
   }
 
@@ -681,6 +727,12 @@
     return timer.phases.find((x) => x.type === 'work');
   }
 
+  function applyPhaseColors(screen, type, paused) {
+    const c = phaseColors(type, paused);
+    screen.style.setProperty('--phase', c.bg);
+    screen.style.setProperty('--ph-text', c.fg);
+  }
+
   function render(force) {
     const screen = $('#screen-timer');
     const timeEl = $('#t-time');
@@ -690,6 +742,7 @@
       const rounds = timer.phases.filter((p) => p.type === 'work').length;
       screen.dataset.phase = 'done';
       screen.classList.remove('is-paused');
+      applyPhaseColors(screen, 'done', false);
       $('#t-phase').textContent = t('timer.done');
       timeEl.textContent = S.formatTime(total);
       timeEl.classList.remove('long');
@@ -719,6 +772,7 @@
     const phaseChanged = screen.dataset.phase !== p.type || screen.classList.contains('is-paused') !== timer.paused;
     screen.dataset.phase = p.type;
     screen.classList.toggle('is-paused', timer.paused);
+    applyPhaseColors(screen, p.type, timer.paused);
     $('#t-wake').hidden = false;
 
     $('#t-phase').textContent = timer.paused ? t('timer.paused') + ' · ' + phaseName(p.type) : phaseName(p.type);
@@ -756,6 +810,8 @@
   $('#btn-pause').addEventListener('click', togglePause);
   $('#btn-skip').addEventListener('click', skipPhase);
   $('#btn-prev').addEventListener('click', prevPhase);
+  $('#btn-minus10').addEventListener('click', () => adjustPhase(-10));
+  $('#btn-plus10').addEventListener('click', () => adjustPhase(10));
   $('#btn-repeat').addEventListener('click', () => startSession(timer.config));
   $('#btn-home').addEventListener('click', () => { stopTimer(); navigate('home'); });
   $('#btn-exit').addEventListener('click', async () => {
@@ -806,7 +862,117 @@
     $('#vibration-hint').hidden = canVibrate;
     $('#opt-tap-pause').checked = settings.tapPause;
     $('#app-version').textContent = t('settings.version', { v: APP_VERSION });
+    renderSoundSets();
+    renderColorPicker('work');
+    renderColorPicker('rest');
+    renderColorPreview();
   }
+
+  function renderSoundSets() {
+    const box = $('#opt-sound-set');
+    box.innerHTML = '';
+    Sound.SETS.forEach((name) => {
+      box.appendChild(el('button', {
+        type: 'button', class: 'chip', role: 'radio', 'aria-checked': String(settings.soundSet === name),
+        text: t('sound.' + name),
+        onclick: () => {
+          settings.soundSet = name;
+          saveSettings();
+          applySoundSettings();
+          renderSoundSets();
+          Sound.unlock();
+          testSound('end');
+        }
+      }));
+    });
+  }
+
+  // ---------------------------------------------------------------
+  // Colores (actividad y descanso)
+  // ---------------------------------------------------------------
+  const pickers = {};
+
+  function renderColorPicker(target) {
+    const box = $('#color-' + target);
+    box.innerHTML = '';
+    const ui = pickers[target] = { swatches: [] };
+
+    const grid = el('div', { class: 'swatches', role: 'radiogroup', 'aria-label': t(target === 'work' ? 'settings.colorWork' : 'settings.colorRest') });
+    Colors.PALETTE.forEach((c) => {
+      const b = el('button', {
+        type: 'button', class: 'swatch', role: 'radio',
+        'aria-label': t('color.' + c.id) + ' ' + c.hex,
+        title: t('color.' + c.id),
+        onclick: () => setColor(target, c.hex)
+      });
+      b.style.background = c.hex;
+      b.style.color = Colors.resolve(c.hex, false).fg;
+      b.dataset.hex = c.hex;
+      ui.swatches.push(b);
+      grid.appendChild(b);
+    });
+
+    ui.picker = el('input', { type: 'color', 'aria-label': t('settings.colorCustom') });
+    ui.hex = el('input', { type: 'text', class: 'hex-input', maxlength: 7, spellcheck: 'false', autocomplete: 'off', autocapitalize: 'characters', 'aria-label': t('settings.colorHex') });
+    ui.error = el('p', { class: 'error', hidden: true, text: t('settings.colorInvalid') });
+    ui.row = el('div', { class: 'custom-row' }, [ui.picker, ui.hex, el('span', { class: 'custom-label', text: t('settings.colorCustom') })]);
+
+    ui.picker.addEventListener('input', () => setColor(target, ui.picker.value));
+    ui.hex.addEventListener('input', () => {
+      const v = Colors.normalizeHex(ui.hex.value);
+      ui.hex.setAttribute('aria-invalid', String(!v));
+      ui.error.hidden = !!v || ui.hex.value.replace('#', '').length < 6;
+      if (v) setColor(target, v, true);
+    });
+    ui.hex.addEventListener('blur', () => {
+      ui.hex.removeAttribute('aria-invalid');
+      ui.error.hidden = true;
+      updateColorPicker(target);
+    });
+
+    box.appendChild(grid);
+    box.appendChild(ui.row);
+    box.appendChild(ui.error);
+    updateColorPicker(target);
+  }
+
+  function updateColorPicker(target, typing) {
+    const ui = pickers[target];
+    if (!ui) return;
+    const hex = settings.colors[target];
+    const inPalette = Colors.PALETTE.some((c) => c.hex === hex);
+    ui.swatches.forEach((b) => b.setAttribute('aria-checked', String(b.dataset.hex === hex)));
+    ui.picker.value = hex.toLowerCase();
+    if (!typing) ui.hex.value = hex;
+    ui.row.classList.toggle('is-active', !inPalette);
+  }
+
+  function setColor(target, hex, typing) {
+    hex = Colors.normalizeHex(hex);
+    if (!hex) return;
+    settings.colors[target] = hex;
+    saveSettings();
+    updateColorPicker(target, typing);
+    renderColorPreview();
+  }
+
+  function renderColorPreview() {
+    document.querySelectorAll('[data-preview]').forEach((tile) => {
+      const kind = tile.dataset.preview;
+      const c = kind === 'gray' ? phaseColors('prep', true) : phaseColors(kind, false);
+      tile.style.background = c.bg;
+      tile.style.color = c.fg;
+    });
+  }
+
+  $('#btn-reset-colors').addEventListener('click', () => {
+    settings.colors = Object.assign({}, Colors.DEFAULTS);
+    saveSettings();
+    renderColorPicker('work');
+    renderColorPicker('rest');
+    renderColorPreview();
+    toast(t('settings.colorsResetDone'));
+  });
 
   $('#btn-open-settings').addEventListener('click', () => { renderSettings(); navigate('settings'); });
 
@@ -833,16 +999,25 @@
   });
   $('#opt-volume').addEventListener('input', (e) => {
     settings.volume = parseInt(e.target.value, 10);
-    saveSettings(); applySoundSettings();
+    saveSettings();
   });
+  // Al soltar el control se vuelven a preparar los sonidos con el volumen nuevo.
+  $('#opt-volume').addEventListener('change', () => { applySoundSettings(); testSound('end'); });
   $('#opt-vibration').addEventListener('change', (e) => { settings.vibration = e.target.checked; saveSettings(); });
   $('#opt-tap-pause').addEventListener('change', (e) => { settings.tapPause = e.target.checked; saveSettings(); });
 
+  /** Reproduce un sonido de prueba y avisa si no puede sonar. */
+  function testSound(kind) {
+    Sound.play(kind).then((result) => {
+      if (result === 'off') toast(t('settings.soundOff'));
+      else if (result === 'blocked') toast(t('settings.soundBlocked'));
+    });
+    vibrate(kind === 'warn' ? [80, 80, 80] : kind === 'end' ? 400 : [200, 100, 200, 100, 400]);
+  }
+
   document.querySelectorAll('[data-test-sound]').forEach((b) => b.addEventListener('click', () => {
     Sound.unlock();
-    const kind = b.dataset.testSound;
-    Sound.play(kind);
-    vibrate(kind === 'warn' ? [80, 80, 80] : kind === 'end' ? 400 : [200, 100, 200, 100, 400]);
+    testSound(b.dataset.testSound);
   }));
 
   if (darkQuery) {

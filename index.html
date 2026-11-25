@@ -113,6 +113,7 @@
 
   <!-- ============ TEMPORIZADOR ============ -->
   <section id="screen-timer" class="screen timer" hidden data-phase="prep" aria-live="off">
+    <div class="flash" id="t-flash" aria-hidden="true"></div>
     <div class="timer-top">
       <button class="icon-btn on-color" id="btn-exit" data-i18n-attr="aria-label:timer.exit" aria-label="Salir">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
@@ -138,6 +139,11 @@
         <div class="timer-info">
           <span id="t-next"></span>
           <span id="t-remaining"></span>
+        </div>
+
+        <div class="adjust" id="t-adjust">
+          <button class="pill" id="btn-minus10" data-i18n-attr="aria-label:timer.minus10" aria-label="Quitar 10 segundos">−10 s</button>
+          <button class="pill" id="btn-plus10" data-i18n-attr="aria-label:timer.plus10" aria-label="Añadir 10 segundos">+10 s</button>
         </div>
 
         <div class="controls" id="t-controls">
@@ -199,6 +205,10 @@
           <input type="range" min="0" max="100" step="5" id="opt-volume">
         </label>
         <div>
+          <span class="field-label" data-i18n="settings.soundType"></span>
+          <div class="chip-grid" id="opt-sound-set" role="radiogroup"></div>
+        </div>
+        <div>
           <span class="field-label" data-i18n="settings.test"></span>
           <div class="test-buttons">
             <button class="btn btn-secondary btn-sm" data-test-sound="warn" data-i18n="settings.testWarn"></button>
@@ -207,6 +217,28 @@
           </div>
           <p class="hint" data-i18n="settings.iosHint"></p>
         </div>
+      </div>
+
+      <div class="card stack" id="colors-card">
+        <span class="field-label card-title" data-i18n="settings.colors"></span>
+        <div class="color-field">
+          <span class="field-label" data-i18n="settings.colorWork"></span>
+          <div class="color-picker" id="color-work"></div>
+        </div>
+        <div class="color-field">
+          <span class="field-label" data-i18n="settings.colorRest"></span>
+          <div class="color-picker" id="color-rest"></div>
+        </div>
+        <div>
+          <span class="field-label" data-i18n="settings.preview"></span>
+          <div class="color-preview" id="color-preview">
+            <div class="preview-tile" data-preview="work"><span class="pv-label" data-i18n="timer.work"></span><span class="pv-time">2:59</span></div>
+            <div class="preview-tile" data-preview="rest"><span class="pv-label" data-i18n="timer.rest"></span><span class="pv-time">0:59</span></div>
+            <div class="preview-tile" data-preview="gray"><span class="pv-label" data-i18n="timer.paused"></span><span class="pv-time">1:30</span></div>
+          </div>
+          <p class="hint" data-i18n="settings.colorsHint"></p>
+        </div>
+        <button class="btn btn-secondary" id="btn-reset-colors" data-i18n="settings.colorsReset"></button>
       </div>
 
       <div class="card stack">
@@ -276,6 +308,7 @@
   <script src="js/sequence.js"></script>
   <script src="js/i18n.js"></script>
   <script src="js/audio.js"></script>
+  <script src="js/colors.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

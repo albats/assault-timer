@@ -3,7 +3,7 @@
  * Al publicar cambios, sube el número de CACHE para que los móviles
  * descarguen la versión nueva.
  */
-const CACHE = 'asalto-v1.0.0';
+const CACHE = 'asalto-v1.1.0';
 const ASSETS = [
   './',
   './index.html',
@@ -11,6 +11,7 @@ const ASSETS = [
   './js/sequence.js',
   './js/i18n.js',
   './js/audio.js',
+  './js/colors.js',
   './js/app.js',
   './manifest.webmanifest',
   './icons/icon.svg',

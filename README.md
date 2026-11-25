@@ -2,13 +2,15 @@
 
 Temporizador de rounds gratuito para entrenar: tiempo de actividad y de descanso, bloques de rounds, cuenta atrás inicial, presets con nombre, modo claro/oscuro y español/inglés. Es una web instalable (PWA): no necesita tienda de apps ni servidor.
 
-## Funcionalidades (v1.0.0)
+## Funcionalidades (v1.1.0)
 
 - **Sesión simple:** rounds (1–99), actividad y descanso en mm:ss.
 - **Bloques (opcional):** N bloques (1–20), cada uno con varios grupos de rounds (cada grupo con sus propios tiempos) y descanso entre bloques.
 - **Cuenta atrás inicial:** 3, 5 (por defecto), 10, 15 o 30 s.
-- **Sonidos:** aviso a los 10 s (doble pitido agudo), fin de fase (pitido largo) y fin de sesión (tres pitidos).
-- **Colores por fase (apagados):** actividad azul, descanso rojo, pausa gris, preparación ocre, descanso entre bloques morado y fin verde.
+- **Sonidos:** campana de boxeo por defecto. También hay pitido, silbato, gong y digital, que se eligen en Ajustes. Suena un aviso a los 10 s, otro al terminar cada fase y otro al terminar la sesión.
+- **Colores:** paleta pastel de 10 colores para la pantalla de actividad (índigo por defecto) y la de descanso (rojo por defecto), con opción de color hex personalizado y botón para restablecer. La pausa, la preparación, el descanso entre bloques y el final van siempre en gris. En tema oscuro los colores se oscurecen solos y el texto pasa a blanco.
+- **Destello de pantalla** al cambiar de fase.
+- **Botones −10 s / +10 s** para ajustar la fase en curso.
 - **Pantalla siempre encendida** mientras el temporizador corre (Screen Wake Lock).
 - **Controles:** pausa/reanudar, saltar fase, fase anterior (si la fase lleva más de 3 s, la reinicia) y salir con confirmación.
 - **Presets con nombre:** guardar, editar, duplicar y borrar. Se guardan en el propio dispositivo.
@@ -32,7 +34,8 @@ index.html              Pantallas (inicio, editor, temporizador, ajustes)
 css/styles.css          Estilos, temas y colores de fase
 js/sequence.js          Lógica pura: configuración -> lista de fases
 js/i18n.js              Textos ES/EN
-js/audio.js             Pitidos (Web Audio, sin archivos)
+js/audio.js             Sonidos generados por código (campana, pitido, silbato, gong, digital)
+js/colors.js            Paleta, contraste del texto y modo oscuro
 js/app.js               Interfaz, presets, motor del temporizador
 sw.js                   Modo offline (sube CACHE al publicar cambios)
 manifest.webmanifest    Nombre, icono y modo app instalable
