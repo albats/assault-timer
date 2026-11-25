@@ -2,7 +2,7 @@
 
 Temporizador de rounds gratuito para entrenar: tiempo de actividad y de descanso, bloques de rounds, cuenta atrás inicial, presets con nombre, modo claro/oscuro y español/inglés. Es una web instalable (PWA): no necesita tienda de apps ni servidor.
 
-## Funcionalidades (v1.2.0)
+## Funcionalidades (v1.3.0)
 
 - **Tipos de sesión:** intervalos, EMOM (cada intervalo empieza un round), AMRAP (cuenta atrás con contador de rondas) y For Time (cronómetro hacia arriba con vueltas y tiempo límite opcional).
 - **Sesión simple:** rounds (1–99), actividad y descanso en mm:ss.
@@ -18,6 +18,7 @@ Temporizador de rounds gratuito para entrenar: tiempo de actividad y de descanso
 - **Presets con nombre:** guardar, editar, duplicar y borrar. Se guardan en el propio dispositivo.
 - **Ajustes:** idioma, tema (sistema/claro/oscuro), sonido y volumen, vibración (solo Android) y "tocar la pantalla para pausar".
 - **Diseño adaptable:** móvil y tablet, en vertical y en horizontal.
+- **Historial y resumen semanal** (botón de perfil en el inicio): cada sesión terminada se guarda con fecha, duración real sin pausas y rondas o tiempo. Las sesiones abandonadas a partir de 2 minutos se guardan como incompletas. Muestra sesiones y minutos de la semana (de lunes a domingo), un gráfico por día y la comparación con la semana pasada. Se guarda solo en el dispositivo.
 - **Funciona sin conexión** una vez cargada (service worker).
 
 ### Reglas de secuencia

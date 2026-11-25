@@ -289,6 +289,34 @@ input[type="range"] { flex: 1; max-width: 260px; accent-color: var(--accent); }
 .pv-label { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
 .pv-time { font-size: 1.7rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
 
+/* ---------- Historial ---------- */
+.topbar-actions { display: flex; align-items: center; gap: 2px; }
+.week-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.week-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.stat { background: var(--surface-2); border-radius: var(--radius-sm); padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; }
+.stat strong { font-size: 2rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.stat span { color: var(--text-2); font-size: .9rem; }
+.week-bars { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; align-items: end; height: 120px; padding-top: 4px; }
+.bar-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 4px; }
+.bar-val { font-size: .7rem; color: var(--text-2); font-variant-numeric: tabular-nums; min-height: 1em; }
+.bar { width: 100%; max-width: 34px; border-radius: 6px 6px 3px 3px; background: color-mix(in srgb, var(--accent) 40%, transparent); min-height: 3px; }
+.bar.today { background: var(--accent); }
+.bar-day { font-size: .75rem; color: var(--text-2); font-weight: 600; }
+.bar-day.today { color: var(--text); }
+.history-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.history-item {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 6px 10px 14px;
+}
+.history-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.history-name { font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.history-detail { font-size: .85rem; color: var(--text-2); }
+.history-item .icon-btn { color: var(--text-2); }
+.history-item .icon-btn svg { width: 20px; height: 20px; }
+.tag { display: inline-block; font-size: .72rem; font-weight: 700; padding: 1px 7px; border-radius: 999px; margin-left: 6px; vertical-align: 1px;
+  background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); }
+.center { text-align: center; }
+
 /* ---------- Diálogos ---------- */
 .dialog {
   border: none; border-radius: 18px; padding: 20px; width: min(92vw, 420px);

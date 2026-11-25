@@ -5,7 +5,7 @@
 (function () {
   'use strict';
 
-  const APP_VERSION = '1.2.0'; // Ring Timer
+  const APP_VERSION = '1.3.0'; // Ring Timer
   const S = window.Sequence;
   const I18n = window.I18n;
   const t = I18n.t;
@@ -17,7 +17,8 @@
     presets: 'asalto.presets',
     last: 'asalto.lastConfig',
     seeded: 'asalto.seeded',
-    seedVersion: 'asalto.seedVersion'
+    seedVersion: 'asalto.seedVersion',
+    history: 'asalto.history'
   };
 
   // ---------------------------------------------------------------
@@ -58,6 +59,7 @@
     plus: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
     up: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>',
     down: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>',
+    trashSm: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
     trash: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
     more: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6" class="fill"/><circle cx="12" cy="12" r="1.6" class="fill"/><circle cx="19" cy="12" r="1.6" class="fill"/></svg>',
     play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12-7.5z" class="fill"/></svg>'
@@ -204,7 +206,7 @@
     $('#preset-empty').hidden = presets.length > 0;
     presets.forEach((p) => {
       const li = el('li', { class: 'preset' }, [
-        el('button', { class: 'preset-main', type: 'button', onclick: () => startSession(p.config) }, [
+        el('button', { class: 'preset-main', type: 'button', onclick: () => startSession(p.config, p.name) }, [
           el('span', { class: 'preset-name', text: p.name }),
           el('span', { class: 'preset-detail', text: describeConfig(p.config) })
         ]),
@@ -214,7 +216,7 @@
         }),
         el('button', {
           class: 'preset-play', type: 'button', 'aria-label': t('preset.start') + ': ' + p.name,
-          html: ICONS.play, onclick: () => startSession(p.config)
+          html: ICONS.play, onclick: () => startSession(p.config, p.name)
         })
       ]);
       list.appendChild(li);
@@ -312,7 +314,7 @@
   // Navegación (con soporte del botón «atrás» del móvil)
   // ---------------------------------------------------------------
   let currentScreen = 'home';
-  const SCREENS = ['home', 'editor', 'timer', 'settings'];
+  const SCREENS = ['home', 'editor', 'timer', 'settings', 'history'];
 
   function showScreen(name) {
     SCREENS.forEach((s) => { $('#screen-' + s).hidden = s !== name; });
@@ -346,7 +348,7 @@
       return;
     }
     const target = e.state && e.state.screen;
-    if (target === 'editor' || target === 'settings') showScreen(target);
+    if (target === 'editor' || target === 'settings' || target === 'history') showScreen(target);
     else {
       if (timer.active) stopTimer();
       showScreen('home');
@@ -570,7 +572,8 @@
 
   $('#btn-start').addEventListener('click', () => {
     if (!editorIsValid()) return;
-    startSession(editor.config);
+    const preset = editor.presetId ? presets.find((p) => p.id === editor.presetId) : null;
+    startSession(editor.config, preset ? preset.name : null);
   });
 
   $('#btn-save-preset').addEventListener('click', async () => {
@@ -651,7 +654,12 @@
     count: 0,        // AMRAP: rondas contadas
     laps: [],        // For Time: segundos acumulados en cada vuelta
     finalTime: 0,    // For Time: tiempo final
-    capReached: false
+    capReached: false,
+    name: null,          // nombre del preset (para el historial)
+    workStartedAt: 0,    // hora real (ms) en que empezó la primera fase tras la cuenta atrás
+    pausedMs: 0,         // tiempo en pausa desde entonces
+    pauseWall: 0,
+    recorded: false
   };
 
   const mode = () => (timer.config ? timer.config.mode : 'intervals');
@@ -682,7 +690,7 @@
     render(true);
   }
 
-  function startSession(config) {
+  function startSession(config, name) {
     Sound.unlock(); // tiene que ocurrir dentro del toque del usuario
     const cfg = S.normalizeConfig(clone(config));
     save(KEYS.last, cfg);
@@ -693,6 +701,11 @@
     timer.laps = [];
     timer.finalTime = 0;
     timer.capReached = false;
+    timer.name = name || null;
+    timer.workStartedAt = 0;
+    timer.pausedMs = 0;
+    timer.pauseWall = 0;
+    timer.recorded = false;
     timer.active = true;
     timer.finished = false;
     timer.paused = false;
@@ -712,6 +725,12 @@
     timer.phaseStart = startTime;
     if (timer.paused) timer.pausedAt = startTime;
     const p = timer.phases[i];
+    // Para el historial: el tiempo entrenado empieza tras la cuenta atrás.
+    if (!timer.workStartedAt && p.type !== 'prep') {
+      timer.workStartedAt = Date.now() - Math.max(0, now() - startTime);
+      timer.pausedMs = 0;
+      if (timer.paused) timer.pauseWall = Date.now();
+    }
     // Sin aviso de 10 s en la cuenta atrás inicial, en fases de 10 s o menos
     // ni en un For Time sin límite.
     timer.warned = p.type === 'prep' || p.duration <= 10 || !!p.open;
@@ -755,6 +774,7 @@
     const cur = timer.phases[timer.idx];
     if (cur && cur.countUp) timer.finalTime = Math.min(Math.max(0, elapsedSec()), cur.duration);
     timer.finished = true;
+    recordSession(true);
     clearInterval(timer.interval);
     releaseWake();
     Sound.play('done');
@@ -772,10 +792,13 @@
     if (timer.paused) {
       Sound.unlock();
       timer.phaseStart += now() - timer.pausedAt;
+      if (timer.pauseWall) timer.pausedMs += Date.now() - timer.pauseWall;
+      timer.pauseWall = 0;
       timer.paused = false;
       requestWake();
     } else {
       timer.pausedAt = now();
+      timer.pauseWall = Date.now();
       timer.paused = true;
       releaseWake();
     }
@@ -830,6 +853,8 @@
   }
 
   function stopTimer() {
+    // Una sesión abandonada se guarda como incompleta si duró al menos 2 minutos.
+    if (timer.active && !timer.finished && !timer.recorded && activeSeconds() >= 120) recordSession(false);
     timer.active = false;
     timer.finished = false;
     timer.paused = false;
@@ -989,7 +1014,7 @@
   $('#btn-finish').addEventListener('click', finishNow);
   $('#btn-minus10').addEventListener('click', () => adjustPhase(-10));
   $('#btn-plus10').addEventListener('click', () => adjustPhase(10));
-  $('#btn-repeat').addEventListener('click', () => startSession(timer.config));
+  $('#btn-repeat').addEventListener('click', () => startSession(timer.config, timer.name));
   $('#btn-home').addEventListener('click', () => { stopTimer(); navigate('home'); });
   $('#btn-exit').addEventListener('click', async () => {
     if (timer.finished || (await confirmDialog(t('timer.confirmExit'), t('timer.exit'), true))) {
@@ -1018,6 +1043,139 @@
       requestWake();
       tick();
     }
+  });
+
+  // ---------------------------------------------------------------
+  // Historial de sesiones (solo en este dispositivo)
+  // ---------------------------------------------------------------
+  const HISTORY_MAX = 500;
+  let sessionLog = load(KEYS.history, []);
+  if (!Array.isArray(sessionLog)) sessionLog = [];
+  const saveHistory = () => save(KEYS.history, sessionLog);
+
+  /** Segundos entrenados: desde el fin de la cuenta atrás, sin pausas. */
+  function activeSeconds() {
+    if (!timer.workStartedAt) return 0;
+    const pausedNow = timer.paused && timer.pauseWall ? Date.now() - timer.pauseWall : 0;
+    return Math.max(0, (Date.now() - timer.workStartedAt - timer.pausedMs - pausedNow) / 1000);
+  }
+
+  function recordSession(complete) {
+    if (timer.recorded || !timer.config) return;
+    const secs = Math.round(activeSeconds());
+    if (secs < 1) return;
+    const m = mode();
+    const workIdx = timer.phases.map((p, i) => (p.type === 'work' ? i : -1)).filter((i) => i >= 0);
+    const roundsDone = workIdx.filter((i) => (complete ? i <= timer.idx : i < timer.idx)).length;
+    sessionLog.unshift({
+      id: uid(),
+      at: timer.workStartedAt,
+      name: timer.name,
+      mode: m,
+      duration: secs,
+      rounds: roundsDone,
+      totalRounds: workIdx.length,
+      count: timer.count,
+      finalTime: Math.floor(timer.finalTime),
+      complete: !!complete
+    });
+    if (sessionLog.length > HISTORY_MAX) sessionLog.length = HISTORY_MAX;
+    timer.recorded = true;
+    saveHistory();
+  }
+
+  function startOfWeek(d) {
+    const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const day = (x.getDay() + 6) % 7; // lunes = 0
+    x.setDate(x.getDate() - day);
+    return x;
+  }
+
+  function sessionDetail(h) {
+    const parts = [];
+    const date = new Date(h.at);
+    const loc = I18n.lang === 'es' ? 'es-ES' : 'en-GB';
+    parts.push(date.toLocaleDateString(loc, { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' +
+      date.toLocaleTimeString(loc, { hour: '2-digit', minute: '2-digit' }));
+    parts.push(S.formatTime(h.duration));
+    if (h.mode === 'amrap') parts.push(t('timer.roundsResult', { n: h.count }));
+    else if (h.mode === 'fortime') parts.push(t('history.time', { time: S.formatTime(h.finalTime) }));
+    else parts.push(h.rounds === 1 ? '1 round' : t('editor.totalRounds', { n: h.rounds }));
+    return parts.join(' · ');
+  }
+
+  function renderHistory() {
+    const now_ = new Date();
+    const weekStart = startOfWeek(now_);
+    const lastStart = new Date(weekStart); lastStart.setDate(lastStart.getDate() - 7);
+    const weekEnd = new Date(weekStart); weekEnd.setDate(weekEnd.getDate() + 7);
+    const loc = I18n.lang === 'es' ? 'es-ES' : 'en-GB';
+
+    const days = [0, 0, 0, 0, 0, 0, 0];
+    let wCount = 0, wSecs = 0, lCount = 0, lSecs = 0;
+    sessionLog.forEach((h) => {
+      if (h.at >= weekStart.getTime() && h.at < weekEnd.getTime()) {
+        wCount++; wSecs += h.duration;
+        days[(new Date(h.at).getDay() + 6) % 7] += h.duration;
+      } else if (h.at >= lastStart.getTime() && h.at < weekStart.getTime()) {
+        lCount++; lSecs += h.duration;
+      }
+    });
+    const sunday = new Date(weekEnd); sunday.setDate(sunday.getDate() - 1);
+    const fmtDay = (d) => d.toLocaleDateString(loc, { day: 'numeric', month: 'short' });
+    $('#week-range').textContent = fmtDay(weekStart) + ' – ' + fmtDay(sunday);
+    $('#week-sessions').textContent = wCount;
+    $('#week-sessions-label').textContent = t(wCount === 1 ? 'history.session' : 'history.sessions');
+    $('#week-minutes').textContent = Math.round(wSecs / 60);
+    $('#week-compare').textContent = t('history.lastWeek', {
+      sessions: lCount, label: t(lCount === 1 ? 'history.session' : 'history.sessions'), minutes: Math.round(lSecs / 60)
+    });
+
+    const bars = $('#week-bars');
+    bars.innerHTML = '';
+    const labels = t('history.days').split(',');
+    const maxMin = Math.max(1, ...days.map((v) => v / 60));
+    const today = (now_.getDay() + 6) % 7;
+    days.forEach((secs, i) => {
+      const mins = Math.round(secs / 60);
+      const bar = el('div', { class: 'bar' + (i === today ? ' today' : '') });
+      bar.style.height = Math.max(3, (secs / 60 / maxMin) * 80) + 'px';
+      bars.appendChild(el('div', { class: 'bar-col' }, [
+        el('span', { class: 'bar-val', text: mins ? String(mins) : '' }),
+        bar,
+        el('span', { class: 'bar-day' + (i === today ? ' today' : ''), text: labels[i] })
+      ]));
+    });
+
+    const list = $('#history-list');
+    list.innerHTML = '';
+    $('#history-empty').hidden = sessionLog.length > 0;
+    $('#btn-clear-history').hidden = sessionLog.length === 0;
+    sessionLog.forEach((h) => {
+      const name = el('span', { class: 'history-name', text: h.name || t('mode.' + (h.mode || 'intervals')) });
+      if (!h.complete) name.appendChild(el('span', { class: 'tag', text: t('history.incomplete') }));
+      list.appendChild(el('li', { class: 'history-item' }, [
+        el('div', { class: 'history-main' }, [name, el('span', { class: 'history-detail', text: sessionDetail(h) })]),
+        el('button', {
+          type: 'button', class: 'icon-btn', html: ICONS.trashSm, 'aria-label': t('history.delete'),
+          onclick: async () => {
+            if (!(await confirmDialog(t('history.confirmDelete'), t('common.delete'), true))) return;
+            sessionLog = sessionLog.filter((x) => x.id !== h.id);
+            saveHistory();
+            renderHistory();
+          }
+        })
+      ]));
+    });
+  }
+
+  $('#btn-open-history').addEventListener('click', () => { renderHistory(); navigate('history'); });
+  $('#btn-clear-history').addEventListener('click', async () => {
+    if (!(await confirmDialog(t('history.confirmClear'), t('history.clear'), true))) return;
+    sessionLog = [];
+    saveHistory();
+    renderHistory();
+    toast(t('history.cleared'));
   });
 
   // ---------------------------------------------------------------
@@ -1188,6 +1346,7 @@
     renderHome();
     if (editor.config) renderEditor();
     if (timer.active) render(true);
+    if (currentScreen === 'history') renderHistory();
     setWakeIndicator(!!wakeLock);
   }
 

@@ -3,7 +3,7 @@
  * Al publicar cambios, sube el número de CACHE para que los móviles
  * descarguen la versión nueva.
  */
-const CACHE = 'ring-timer-v1.2.0';
+const CACHE = 'ring-timer-v1.3.0';
 const ASSETS = [
   './',
   './index.html',
