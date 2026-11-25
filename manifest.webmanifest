@@ -1,6 +1,6 @@
 {
-  "name": "Asalto · Timer de rounds",
-  "short_name": "Asalto",
+  "name": "Ring Timer",
+  "short_name": "Ring Timer",
   "description": "Temporizador de rounds gratuito: actividad, descanso, bloques y presets.",
   "lang": "es",
   "start_url": "./",

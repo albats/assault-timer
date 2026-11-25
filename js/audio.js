@@ -1,5 +1,5 @@
 /*
- * Sonidos de Asalto, generados por código (sin archivos).
+ * Sonidos de Ring Timer, generados por código (sin archivos).
  *
  * Cómo suena de forma fiable en móviles:
  *  1. Cada sonido se "graba" una vez en memoria (OfflineAudioContext -> WAV)

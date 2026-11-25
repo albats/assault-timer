@@ -1,4 +1,4 @@
-# Asalto · Timer de rounds
+# Ring Timer
 
 Temporizador de rounds gratuito para entrenar: tiempo de actividad y de descanso, bloques de rounds, cuenta atrás inicial, presets con nombre, modo claro/oscuro y español/inglés. Es una web instalable (PWA): no necesita tienda de apps ni servidor.
 
@@ -57,7 +57,7 @@ Después abre http://localhost:8000. También funciona abriendo `index.html` con
 1. Sube el código a un repositorio de GitHub (por ejemplo `assault-timer`):
    ```bash
    git add .
-   git commit -m "Asalto v1.0.0"
+   git commit -m "Ring Timer v1.1.2"
    git branch -M main
    git remote add origin https://github.com/TU_USUARIO/assault-timer.git
    git push -u origin main
@@ -67,7 +67,7 @@ Después abre http://localhost:8000. También funciona abriendo `index.html` con
 
 ### Publicar cambios
 
-Cambia el número de `CACHE` en `sw.js` (por ejemplo `asalto-v1.0.1`) y `APP_VERSION` en `js/app.js`. Después haz commit y push. Los móviles reciben la versión nueva al abrir la app.
+Cambia el número de `CACHE` en `sw.js` (por ejemplo `ring-timer-v1.1.3`), `APP_VERSION` en `js/app.js` y el `?v=` de los archivos en `index.html`. Después haz commit y push. Los móviles reciben la versión nueva al abrir la app.
 
 ## Instalar en el móvil
 

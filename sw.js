@@ -3,7 +3,7 @@
  * Al publicar cambios, sube el número de CACHE para que los móviles
  * descarguen la versión nueva.
  */
-const CACHE = 'asalto-v1.1.0';
+const CACHE = 'ring-timer-v1.1.2';
 const ASSETS = [
   './',
   './index.html',
@@ -34,12 +34,17 @@ self.addEventListener('activate', (event) => {
 });
 
 // Red primero (para recibir actualizaciones) y caché si no hay conexión.
+// "no-cache" obliga a preguntar al servidor si hay versión nueva, para no
+// mezclar archivos nuevos con otros antiguos guardados por el navegador.
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  const url = new URL(event.request.url);
+  const sameOrigin = url.origin === self.location.origin;
+  const request = sameOrigin ? new Request(url.href, { cache: 'no-cache', credentials: 'same-origin' }) : event.request;
   event.respondWith(
-    fetch(event.request)
+    fetch(request)
       .then((res) => {
-        if (res && res.ok && new URL(event.request.url).origin === self.location.origin) {
+        if (res && res.ok && sameOrigin) {
           const copy = res.clone();
           caches.open(CACHE).then((cache) => cache.put(event.request, copy));
         }

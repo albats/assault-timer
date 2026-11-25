@@ -1,11 +1,11 @@
 /*
- * Asalto — lógica de la interfaz.
+ * Ring Timer — lógica de la interfaz.
  * Pantallas: inicio, editor, temporizador, ajustes.
  */
 (function () {
   'use strict';
 
-  const APP_VERSION = '1.1.0';
+  const APP_VERSION = '1.1.2'; // Ring Timer
   const S = window.Sequence;
   const I18n = window.I18n;
   const t = I18n.t;

@@ -1,5 +1,5 @@
 /* ==========================================================
-   Asalto — estilos
+   Ring Timer — estilos
    Colores apagados (muted). Tema claro/oscuro con [data-theme].
    ========================================================== */
 
@@ -89,7 +89,19 @@ svg .fill { fill: currentColor; stroke: none; }
 
 .brand { display: flex; align-items: center; gap: 12px; }
 .brand-icon { border-radius: 10px; }
-.brand-name { margin: 0; font-size: 1.5rem; font-weight: 750; letter-spacing: -.01em; }
+/* Marca: siempre "RING TIMER", en mayúsculas, gruesa y estrecha.
+   Se usan fuentes condensadas del sistema (funcionan sin conexión):
+   iPhone/Mac: Avenir Next Condensed · Windows: Bahnschrift · Android: Roboto Condensed */
+.brand-name {
+  margin: 0;
+  font-family: "Avenir Next Condensed", "Bahnschrift", "Roboto Condensed", "Arial Narrow", sans-serif-condensed, var(--font);
+  font-stretch: condensed;
+  font-weight: 800;
+  font-size: 1.75rem;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: .01em;
+}
 .brand-tagline { margin: 0; color: var(--text-2); font-size: .9rem; }
 
 .content {
